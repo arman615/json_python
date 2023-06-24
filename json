@@ -1,0 +1,137 @@
+def read_json_file(filename):
+    with open(filename, 'r') as file:
+        json_data = file.read()
+    return json_data
+#-----------------------------------------------------
+def parse_json(json_string):
+    json_iter = iter(json_string)
+    parsed_json, _ = parse_object(json_iter)
+    return parsed_json
+
+def parse_object(json_iter):
+    obj = {}
+    current_key = ''
+
+    for char in json_iter:
+        if char == '{':
+            nested_obj, json_iter = parse_object(json_iter)
+            obj[current_key] = nested_obj
+        elif char == '}':
+            return obj, json_iter
+        elif char == '"':
+            value, json_iter = parse_string(json_iter)
+            obj[current_key] = value
+        elif char.isalnum():
+            current_key, json_iter = parse_key(char, json_iter)
+        elif char == ':':
+            continue
+        elif char in [',', ' ', '\n']:
+            continue
+        else:
+            raise ValueError(f"Invalid character: {char}")
+
+    return obj, json_iter
+
+def parse_string(json_iter):
+    string = ''
+    for char in json_iter:
+        if char == '"':
+            return string, json_iter
+        string += char
+    return string, json_iter
+
+def parse_key(char, json_iter):
+    key = char
+    for char in json_iter:
+        if char == '"':
+            return key, json_iter
+        key += char
+    return key, json_iter
+
+#-----------------------------------------------------
+def modify_json_data(json_data):
+    command = input("Enter command (add/upd/del): ")
+    field = input("Enter field to modify/delete/add: ")
+
+    if command not in ['add', 'upd', 'del']:
+        raise ValueError("Invalid command")
+
+    field_path = field.split('.')
+    current_obj = json_data
+
+    for key in field_path[:-1]:
+        if isinstance(current_obj, dict):
+            if key not in current_obj:
+                raise ValueError(f"Field '{key}' does not exist")
+            current_obj = current_obj[key]
+        else:
+            raise ValueError(f"Field '{key}' does not exist")
+
+    last_key = field_path[-1]
+
+    if command == 'del':
+        if isinstance(current_obj, dict):
+            if last_key not in current_obj:
+                raise ValueError(f"Field '{last_key}' does not exist")
+            del current_obj[last_key]
+        else:
+            raise ValueError(f"Field '{field_path[-2]}' is not an object")
+    elif command == 'upd':
+        if isinstance(current_obj, dict):
+            if last_key not in current_obj:
+                raise ValueError(f"Field '{last_key}' does not exist")
+            value = input("Enter new value: ")
+            current_obj[last_key] = value
+        else:
+            raise ValueError(f"Field '{field_path[-2]}' is not an object")
+    elif command == 'add':
+        value = input("Enter value: ")
+        if isinstance(current_obj, dict):
+            if last_key not in current_obj:
+                current_obj[last_key] = {}
+            current_obj[last_key] = value
+        else:
+            raise ValueError(f"Field '{field_path[-2]}' is not an object")
+
+    return json_data
+
+#-----------------------------------------------------
+def write_json_file(filename, json_data):
+    with open(filename, 'w') as file:
+        file.write(json_data)
+#-----------------------------------------------------
+def perform_testing():
+    test_file = 'test.json'
+    sample_data = '''
+    {
+       "student": {
+          "age": 22,
+          "score": 99
+       },
+       "school": {
+          "name": "university",
+          "address": {
+             "street": "Azatutyan",
+             "number": 24
+          }
+       }
+    }
+    '''
+
+    write_json_file(test_file, sample_data)
+    json_data = read_json_file(test_file)
+    parsed_json = parse_json(json_data)
+    print("Original JSON:")
+    print(parsed_json)
+
+    try:
+        modified_json = modify_json_data(parsed_json)
+        print("\nModified JSON:")
+        print(modified_json)
+    except ValueError as e:
+        print("\nERROR!")
+        print(e)
+
+    write_json_file(test_file, json.dumps(modified_json, indent=4))
+
+perform_testing()
